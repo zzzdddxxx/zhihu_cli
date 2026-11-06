@@ -89,10 +89,60 @@ def answers(url_token, offset, num, full, as_json, as_yaml):
         title = a.get("question_title", "")
         vote = common.format_count(a.get("voteup_count", 0))
         comment = common.format_count(a.get("comment_count", 0))
-        common.console.print(f"[{i}] [bold]{title}[/bold]  (👍 {vote}  💬 {comment})")
+        flag = "  [yellow]⚠️已折叠[/yellow]" if not a.get("is_normal") else ""
+        common.console.print(f"[{i}] [bold]{title}[/bold]{flag}  (👍 {vote}  💬 {comment})")
         if full:
             content = a.get("content", "") or a.get("excerpt", "")
-            common.console.print(content)
+            if content:
+                common.console.print(content)
+        else:
+            excerpt = _truncate(a.get("excerpt", ""))
+            if excerpt:
+                common.console.print(f"    {excerpt}")
+        common.console.print()
+
+
+@click.command()
+@click.argument("url_token")
+@click.option("--offset", type=int, default=0, help="偏移量")
+@click.option("--num", type=int, default=20, help="拉取条数（程序内自动翻页）")
+@click.option("--full", is_flag=True, help="显示文章完整正文")
+@common.structured_output_options
+def articles(url_token, offset, num, full, as_json, as_yaml):
+    """查看用户的文章列表。"""
+    output_format = common.resolve_output_format(as_json=as_json, as_yaml=as_yaml)
+    cred = _require_cred()
+    try:
+        items = common.run(_fetch(url_token, cred, client.get_user_articles, offset, num))
+    except Exception as exc:
+        common.exit_error(f"获取文章失败: {exc}")
+
+    normalized = [payloads.normalize_article(it) for it in items]
+    payload = common.success_payload({"url_token": url_token, "articles": normalized})
+
+    if common.emit_structured(payload, output_format):
+        return
+
+    if not normalized:
+        common.console.print("[yellow]暂无文章[/yellow]")
+        return
+    for i, a in enumerate(normalized, 1):
+        title = a.get("title", "")
+        vote = common.format_count(a.get("voteup_count", 0))
+        comment = common.format_count(a.get("comment_count", 0))
+        flags = []
+        if a.get("is_paid"):
+            flags.append("🔒付费")
+        if not a.get("is_normal"):
+            flags.append("[yellow]⚠️已折叠[/yellow]")
+        flag_str = "  " + " ".join(flags) if flags else ""
+        common.console.print(f"[{i}] [bold]{title}[/bold]{flag_str}  (👍 {vote}  💬 {comment})")
+        if full:
+            content = a.get("content", "") or a.get("excerpt", "")
+            if content:
+                common.console.print(content)
+            if a.get("is_paid"):
+                common.console.print("[yellow]（付费专栏内容，以上为免费预览，完整正文需付费）[/yellow]")
         else:
             excerpt = _truncate(a.get("excerpt", ""))
             if excerpt:

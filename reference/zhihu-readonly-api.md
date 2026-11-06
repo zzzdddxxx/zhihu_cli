@@ -164,7 +164,8 @@ GET /api/v4/search_v3?t=people&q={关键词}&correction=1&offset=0&limit=20
 zhihu login / logout / status / whoami       # 账号
 zhihu search <关键词> --type people [--top N] [--num N] [--offset N]
 zhihu user <url_token>
-zhihu answers <url_token> --offset N --num N
+zhihu answers <url_token> --offset N --num N --full    # 回答（--full 显示正文）
+zhihu articles <url_token> --offset N --num N --full   # 文章（--full 显示正文，付费标识）
 zhihu pins <url_token> --offset N --num N
 zhihu following <url_token> --offset N --num N   # num 默认 None（拉全部）
 ```
@@ -220,6 +221,15 @@ data[*].answer_count,articles_count,gender,follower_count,follower_count_text,
 is_followed,is_following,badge[?(type=best_answerer)].topics
 ```
 
+**文章列表 `members/{token}/articles`**（参数名 `include`）：
+```
+data[*].comment_count,suggest_edit,is_normal,thumbnail_extra_info,thumbnail,can_comment,
+comment_permission,admin_closed_comment,content,voteup_count,created,updated,
+upvoted_followees,voting,review_info,reaction_instruction,is_labeled,label_info,reaction,
+vessay_info;data[*].author.badge[?(type=best_answerer)].topics;data[*].author.kvip_info;
+data[*].author.vip_info
+```
+
 ### 踩坑总结
 
 | 坑 | 现象 | 解决 |
@@ -229,4 +239,73 @@ is_followed,is_following,badge[?(type=best_answerer)].topics
 | pins `content` 为空 | 内容在 `excerpt_title`（HTML） | `content or excerpt_title` 去标签兜底 |
 | name 带 `<em>` | 搜索结果 `name=<em>奥特之父</em>` | `re.sub(r"<[^>]+>", "", name)` 去标签 |
 
-> 代码里这些 include 定义为 `client.py` 的 `_USER_INCLUDE` / `_ANSWERS_INCLUDE` / `_PINS_INCLUDE` / `_FOLLOWEES_INCLUDE` 常量。
+> 代码里这些 include 定义为 `client.py` 的 `_USER_INCLUDE` / `_ANSWERS_INCLUDE` / `_ARTICLES_INCLUDE` / `_PINS_INCLUDE` / `_FOLLOWEES_INCLUDE` 常量。
+
+## 六、回答与文章字段含义
+
+### 回答 `answers` 关键字段
+
+| 字段 | 类型 | 含义 |
+|---|---|---|
+| `id` | str | 回答 ID |
+| `type` | str | 类型，固定 `"answer"` |
+| `excerpt` | str | 摘要（纯文本，约 200 字） |
+| `content` | str | 正文 HTML（`<p>` 段落，可 5000+ 字） |
+| `content_need_truncated` | bool | 正文是否被截断（长回答为 true） |
+| `answer_type` | str | 回答类型（`normal` 普通 / `video` 视频等） |
+| `voteup_count` | int | 点赞数 |
+| `comment_count` | int | 评论数 |
+| `created_time` / `updated_time` | int | 创建/更新时间戳 |
+| `question` | dict | 所属问题（`title`/`id`/`follower_count` 等） |
+| `author` | dict | 作者（`name`/`url_token`/`gender`/`headline` 等） |
+| `url` | str | 回答链接 |
+| `is_normal` | bool | 是否正常（false 表示被折叠/删除） |
+| `is_collapsed` | bool | 是否被折叠 |
+| `collapse_reason` / `collapsed_by` | str | 折叠原因/折叠方 |
+| `is_labeled` | bool | 是否带"专业认可"等标签 |
+| `is_copyable` | bool | 是否允许复制 |
+| `comment_permission` | str | 评论权限（all/... ） |
+| `can_comment` | dict | 当前用户能否评论 |
+| `admin_closed_comment` | bool | 管理员是否关闭评论 |
+| `reaction` | dict | 反应统计（`statistics`/`relation`） |
+| `relationship` | dict | 关系：`is_author`(是否作者)/`is_thanked`(是否感谢)/`is_nothelp`(是否反对)/`voting` |
+| `reward_info` | dict | 打赏信息（`reward_total_money` 等） |
+| `force_login_when_click_read_more` | bool | 点"阅读全文"是否需要登录 |
+
+### 文章 `articles` 关键字段
+
+| 字段 | 类型 | 含义 |
+|---|---|---|
+| `id` | str | 文章 ID |
+| `type` | str | 类型，固定 `"article"` |
+| `title` | str | 标题 |
+| `excerpt` | str | 摘要（纯文本） |
+| `content` | str | 正文 HTML（付费文章只返回免费预览） |
+| `article_type` | str | **付费标志**：`paid_column_content`(付费专栏) / `normal`(免费) |
+| `paid_info` | dict | 付费信息，含 `content`（预览正文） |
+| `voteup_count` / `comment_count` | int | 点赞数 / 评论数 |
+| `created` / `updated` | int | 创建/更新时间戳 |
+| `author` | dict | 作者 |
+| `url` | str | 链接（`zhuanlan.zhihu.com/p/{id}`） |
+| `image_url` | str | 封面图 |
+| `is_normal` | bool | 是否正常 |
+| `copyright_permission` | str | 版权权限 |
+| `upvoted_followees` | list | 点赞的关注者列表 |
+| `voting` / `navigator_vote` | int/bool | 投票状态 |
+
+### 不确定含义的字段（命名只能猜大意）
+
+| 字段 | 猜测 |
+|---|---|
+| `vessay_info` | 视频回答/视频信息（video essay） |
+| `endorsements` | 背书/推荐（文章底部"某某推荐了此文"） |
+| `annotation_action` / `annotation_detail` | 折叠标注相关信息 |
+| `reaction_instruction` | 点赞/反应的操作指引 |
+| `label_info` | 内容标签详情 |
+| `suggest_edit` | 建议修改（"回答可能不规范"提示） |
+| `editable_content` | 作者可编辑的正文副本 |
+| `reshipment_settings` | 转载设置 |
+| `biz_ext` / `extras` | 业务扩展字段 |
+| `is_navigator` / `vote_next_step` / `navigator_vote` | 前端交互状态（导航器点赞流程） |
+
+> 这些不确定的字段多为知乎前端交互用，CLI 展示用不到，可忽略。

@@ -34,6 +34,7 @@ cli.add_command(account.whoami)
 cli.add_command(search.search)
 cli.add_command(user.user)
 cli.add_command(user.answers)
+cli.add_command(user.articles)
 cli.add_command(user.pins)
 cli.add_command(user.following)
 

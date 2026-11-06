@@ -133,6 +133,14 @@ _FOLLOWEES_INCLUDE = (
     "is_followed,is_following,badge[?(type=best_answerer)].topics"
 )
 
+_ARTICLES_INCLUDE = (
+    "data[*].comment_count,suggest_edit,is_normal,thumbnail_extra_info,thumbnail,can_comment,"
+    "comment_permission,admin_closed_comment,content,voteup_count,created,updated,"
+    "upvoted_followees,voting,review_info,reaction_instruction,is_labeled,label_info,reaction,"
+    "vessay_info;data[*].author.badge[?(type=best_answerer)].topics;data[*].author.kvip_info;"
+    "data[*].author.vip_info"
+)
+
 
 async def get_user(url_token: str, credential: Credential | None = None) -> dict[str, Any]:
     """Get a user profile via /api/v4/members/{url_token}."""
@@ -151,6 +159,18 @@ async def get_user_answers(
     """Get a user's answers via /api/v4/members/{url_token}/answers."""
     params = {"offset": offset, "limit": limit, "sort_by": "created", "include": _ANSWERS_INCLUDE}
     data = await _request_json(f"/api/v4/members/{url_token}/answers", credential, params=params)
+    return data if isinstance(data, dict) else {}
+
+
+async def get_user_articles(
+    url_token: str,
+    credential: Credential | None = None,
+    offset: int = 0,
+    limit: int = 20,
+) -> dict[str, Any]:
+    """Get a user's articles (专栏文章) via /api/v4/members/{url_token}/articles."""
+    params = {"offset": offset, "limit": limit, "sort_by": "created", "include": _ARTICLES_INCLUDE}
+    data = await _request_json(f"/api/v4/members/{url_token}/articles", credential, params=params)
     return data if isinstance(data, dict) else {}
 
 

@@ -94,6 +94,25 @@ def normalize_answer(item: dict[str, Any]) -> dict[str, Any]:
         "question_title": _strip_html(question.get("title", "")),
         "question_id": str(question.get("id", "")),
         "author_name": author.get("name", ""),
+        "is_normal": bool(item.get("is_normal", True)),
+        "is_collapsed": bool(item.get("is_collapsed", False)),
+        "url": item.get("url", ""),
+    }
+
+
+def normalize_article(item: dict[str, Any]) -> dict[str, Any]:
+    """Normalize an article dict (members/{token}/articles → data[])."""
+    return {
+        "id": str(item.get("id", "")),
+        "title": _strip_html(item.get("title", "")),
+        "excerpt": _strip_html(item.get("excerpt", "")),
+        "content": html_to_text(item.get("content", "")),
+        "voteup_count": _to_int(item.get("voteup_count"), 0),
+        "comment_count": _to_int(item.get("comment_count"), 0),
+        "created": _to_int(item.get("created"), 0),
+        "updated": _to_int(item.get("updated"), 0),
+        "is_paid": item.get("article_type") == "paid_column_content",
+        "is_normal": bool(item.get("is_normal", True)),
         "url": item.get("url", ""),
     }
 
