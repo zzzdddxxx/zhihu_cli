@@ -39,6 +39,7 @@ __all__ = [
     "NetworkError",
     "RateLimitError",
     "ZhihuError",
+    "fetch_paged",
 ]
 
 
@@ -90,3 +91,32 @@ def require_login(require_write: bool = False, message: str | None = None):
 
     print_login_required(message)
     sys.exit(1)
+
+
+async def fetch_paged(page_fn, offset: int = 0, num: int | None = None, page_size: int = 20):
+    """通用分页拉取。``page_fn(offset, limit) -> {"data": [...], "paging": {...}}``。
+
+    - ``num=None``：拉全部（翻页到底，直到 ``paging.is_end``）
+    - ``num=N``：最多拉 N 条
+    - 翻页之间随机 sleep 0.5~1.5s，降低被限流风险
+    """
+    import asyncio
+    import random
+
+    results = []
+    cur = offset
+    first = True
+    while num is None or len(results) < num:
+        if not first:
+            await asyncio.sleep(random.uniform(0.5, 1.5))
+        first = False
+        data = await page_fn(cur, page_size)
+        items = data.get("data", []) if isinstance(data, dict) else []
+        if not items:
+            break
+        results.extend(items)
+        cur += len(items)
+        paging = data.get("paging", {}) if isinstance(data, dict) else {}
+        if paging.get("is_end"):
+            break
+    return results if num is None else results[:num]
