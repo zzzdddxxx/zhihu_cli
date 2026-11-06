@@ -47,6 +47,26 @@ def _strip_html(text: object) -> str:
     return re.sub(r"<[^>]+>", "", text).strip()
 
 
+def html_to_text(html_str: object) -> str:
+    """HTML 转纯文本，保留段落换行（用于回答/想法正文）。"""
+    if not isinstance(html_str, str) or not html_str:
+        return ""
+    import html
+    import re
+
+    # 段落/换行类标签转成换行
+    text = re.sub(r"<(?:p|br|div|li|h[1-6]|blockquote)[^>]*>", "\n", html_str)
+    # 去掉剩余标签
+    text = re.sub(r"<[^>]+>", "", text)
+    # 处理 HTML 实体
+    text = html.unescape(text)
+    # 清理空白
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r" *\n *", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
 def normalize_search_user(obj: dict[str, Any]) -> dict[str, Any]:
     """Normalize a search result's user object (search_v3 → data[].object)."""
     return {
@@ -67,6 +87,7 @@ def normalize_answer(item: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": str(item.get("id", "")),
         "excerpt": _strip_html(item.get("excerpt", "")),
+        "content": html_to_text(item.get("content", "")),
         "voteup_count": _to_int(item.get("voteup_count"), 0),
         "comment_count": _to_int(item.get("comment_count"), 0),
         "created_time": _to_int(item.get("created_time"), 0),

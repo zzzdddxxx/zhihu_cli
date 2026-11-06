@@ -65,8 +65,9 @@ def user(url_token, as_json, as_yaml):
 @click.argument("url_token")
 @click.option("--offset", type=int, default=0, help="偏移量")
 @click.option("--num", type=int, default=20, help="拉取条数（程序内自动翻页）")
+@click.option("--full", is_flag=True, help="显示回答完整正文")
 @common.structured_output_options
-def answers(url_token, offset, num, as_json, as_yaml):
+def answers(url_token, offset, num, full, as_json, as_yaml):
     """查看用户的回答列表。"""
     output_format = common.resolve_output_format(as_json=as_json, as_yaml=as_yaml)
     cred = _require_cred()
@@ -86,12 +87,16 @@ def answers(url_token, offset, num, as_json, as_yaml):
         return
     for i, a in enumerate(normalized, 1):
         title = a.get("question_title", "")
-        excerpt = _truncate(a.get("excerpt", ""))
         vote = common.format_count(a.get("voteup_count", 0))
         comment = common.format_count(a.get("comment_count", 0))
         common.console.print(f"[{i}] [bold]{title}[/bold]  (👍 {vote}  💬 {comment})")
-        if excerpt:
-            common.console.print(f"    {excerpt}")
+        if full:
+            content = a.get("content", "") or a.get("excerpt", "")
+            common.console.print(content)
+        else:
+            excerpt = _truncate(a.get("excerpt", ""))
+            if excerpt:
+                common.console.print(f"    {excerpt}")
         common.console.print()
 
 
